@@ -138,9 +138,33 @@ export async function fetchDoubanCategories(
 export async function getDoubanCategories(
   params: DoubanCategoriesParams
 ): Promise<DoubanResult> {
+  // 生成缓存键
+  const cacheKey = `douban_categories_${JSON.stringify(params)}`;
+
+  // 尝试从 localStorage 获取缓存
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        // 检查缓存是否过期（缓存时间设置为24小时）
+        if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+          return parsed.data;
+        } else {
+          // 缓存过期，移除缓存项
+          localStorage.removeItem(cacheKey);
+        }
+      } catch (e) {
+        // 解析缓存失败，忽略缓存
+        localStorage.removeItem(cacheKey);
+      }
+    }
+  }
+
+  let result: DoubanResult;
   if (shouldUseDoubanClient()) {
     // 使用客户端代理获取（当设置了代理 URL 时）
-    return fetchDoubanCategories(params);
+    result = await fetchDoubanCategories(params);
   } else {
     // 使用服务端 API（当没有设置代理 URL 时）
     const { kind, category, type, pageLimit = 20, pageStart = 0 } = params;
@@ -152,6 +176,17 @@ export async function getDoubanCategories(
       throw new Error('获取豆瓣分类数据失败');
     }
 
-    return response.json();
+    result = await response.json();
   }
+
+  // 将结果存入缓存
+  if (typeof window !== 'undefined') {
+    const cacheData = {
+      timestamp: Date.now(),
+      data: result
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  }
+
+  return result;
 }
