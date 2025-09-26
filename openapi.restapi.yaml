@@ -1,0 +1,422 @@
+openapi: 3.0.3
+info:
+  title: MoonTV REST API
+  description: 持久化相关接口，统一前缀 /tv，详细参数和返回值说明
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/tv
+paths:
+  /playrecords/{userName}/{key}:
+    get:
+      summary: 获取指定用户的某条播放记录
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 用户名
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 资源唯一key（source+id）
+      responses:
+        '200':
+          description: 播放记录对象
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayRecord'
+        '404':
+          description: 未找到
+    put:
+      summary: 设置/更新指定用户的某条播放记录
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayRecord'
+      responses:
+        '204':
+          description: 成功，无内容返回
+    delete:
+      summary: 删除指定用户的某条播放记录
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 成功，无内容返回
+  /playrecords/{userName}:
+    get:
+      summary: 获取指定用户的所有播放记录
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 所有播放记录，key为source+id
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/PlayRecord'
+  /favorites/{userName}/{key}:
+    get:
+      summary: 获取指定用户的某条收藏
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 收藏对象
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Favorite'
+        '404':
+          description: 未找到
+    put:
+      summary: 设置/更新指定用户的某条收藏
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Favorite'
+      responses:
+        '204':
+          description: 成功，无内容返回
+    delete:
+      summary: 删除指定用户的某条收藏
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 成功，无内容返回
+  /favorites/{userName}:
+    get:
+      summary: 获取指定用户的所有收藏
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 所有收藏，key为source+id
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/Favorite'
+  /users/{userName}:
+    put:
+      summary: 注册或更新用户密码
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  description: 用户密码（明文，建议加密）
+      responses:
+        '204':
+          description: 成功，无内容返回
+    delete:
+      summary: 删除用户及其所有数据
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 成功，无内容返回
+  /users/{userName}/verify:
+    post:
+      summary: 校验用户密码
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  description: 用户密码
+      responses:
+        '200':
+          description: 校验结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    description: 密码是否正确
+  /users/{userName}/exist:
+    get:
+      summary: 检查用户是否存在
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 用户是否存在
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exist:
+                    type: boolean
+                    description: 用户是否存在
+  /users/{userName}/password:
+    put:
+      summary: 修改用户密码
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  description: 新密码
+      responses:
+        '204':
+          description: 成功，无内容返回
+  /users:
+    get:
+      summary: 获取全部用户名
+      responses:
+        '200':
+          description: 用户名数组
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /searchhistory/{userName}:
+    get:
+      summary: 获取用户搜索历史
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 搜索关键字数组，按时间倒序
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+    post:
+      summary: 添加搜索关键字
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                keyword:
+                  type: string
+                  description: 搜索关键字
+      responses:
+        '204':
+          description: 成功，无内容返回
+    delete:
+      summary: 清空用户搜索历史
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 成功，无内容返回
+  /searchhistory/{userName}/{keyword}:
+    delete:
+      summary: 删除指定搜索关键字
+      parameters:
+        - name: userName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: keyword
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 成功，无内容返回
+  /admin/config:
+    get:
+      summary: 获取管理员配置
+      responses:
+        '200':
+          description: 管理员配置对象
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminConfig'
+    put:
+      summary: 设置管理员配置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminConfig'
+      responses:
+        '204':
+          description: 成功，无内容返回
+components:
+  schemas:
+    PlayRecord:
+      type: object
+      properties:
+        source:
+          type: string
+          description: 视频来源标识
+        id:
+          type: string
+          description: 视频唯一ID
+        position:
+          type: number
+          description: 当前播放进度（秒）
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+    Favorite:
+      type: object
+      properties:
+        source:
+          type: string
+          description: 视频来源标识
+        id:
+          type: string
+          description: 视频唯一ID
+        title:
+          type: string
+          description: 视频标题
+        cover:
+          type: string
+          description: 封面图片URL
+        addedAt:
+          type: string
+          format: date-time
+          description: 收藏时间
+    AdminConfig:
+      type: object
+      properties:
+        siteName:
+          type: string
+          description: 站点名称
+        allowRegister:
+          type: boolean
+          description: 是否允许注册
+        otherConfig:
+          type: object
+          description: 其他配置项
