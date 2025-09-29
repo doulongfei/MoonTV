@@ -3,14 +3,16 @@
 import { AdminConfig } from './admin.types';
 import { D1Storage } from './d1.db';
 import { RedisStorage } from './redis.db';
+import { RestApiStorage } from './restapi.db';
 import { Favorite, IStorage, PlayRecord } from './types';
 
-// storage type 常量: 'localstorage' | 'redis' | 'd1'，默认 'localstorage'
+// storage type 常量: 'localstorage' | 'redis' | 'd1' | 'restapi'，默认 'localstorage'
 const STORAGE_TYPE =
   (process.env.NEXT_PUBLIC_STORAGE_TYPE as
     | 'localstorage'
     | 'redis'
     | 'd1'
+    | 'restapi'
     | undefined) || 'localstorage';
 
 // 创建存储实例
@@ -20,6 +22,8 @@ function createStorage(): IStorage {
       return new RedisStorage();
     case 'd1':
       return new D1Storage();
+    case 'restapi':
+      return new RestApiStorage();
     case 'localstorage':
     default:
       // 默认返回内存实现，保证本地开发可用

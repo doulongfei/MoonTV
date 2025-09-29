@@ -183,7 +183,7 @@ export async function getDoubanCategories(
   if (typeof window !== 'undefined') {
     const cacheData = {
       timestamp: Date.now(),
-      data: result
+      data: result,
     };
     localStorage.setItem(cacheKey, JSON.stringify(cacheData));
   }
