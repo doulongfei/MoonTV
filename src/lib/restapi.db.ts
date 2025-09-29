@@ -5,7 +5,7 @@ import { Favorite, IStorage, PlayRecord } from './types';
 export class RestApiStorage implements IStorage {
   private baseUrl: string;
   constructor() {
-    this.baseUrl = process.env.REST_API_URL || 'https://api.doufei.eu.org/tv';
+    this.baseUrl = process.env.REST_API_URL || 'http://127.0.0.1:8080/tv';
   }
 
   // ---------- 播放记录 ----------
