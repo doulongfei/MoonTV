@@ -12,6 +12,7 @@ const STORAGE_TYPE =
     | 'localstorage'
     | 'redis'
     | 'd1'
+    | 'restapi'
     | undefined) || 'localstorage';
 
 // 生成签名
