@@ -1444,6 +1444,59 @@ function PlayPageClient() {
               return newVal ? '当前开启' : '当前关闭';
             },
           },
+          {
+            html: '长按快进',
+            icon: '<text x="50%" y="50%" font-size="20" font-weight="bold" text-anchor="middle" dominant-baseline="middle" fill="#ffffff">⏩</text>',
+            tooltip: `当前: ${longPressSeekSpeed}x`,
+            selector: [
+              {
+                html: '1.5x',
+                value: 1.5,
+                default: longPressSeekSpeed === 1.5,
+              },
+              {
+                html: '2x',
+                value: 2,
+                default: longPressSeekSpeed === 2,
+              },
+              {
+                html: '2.5x',
+                value: 2.5,
+                default: longPressSeekSpeed === 2.5,
+              },
+              {
+                html: '3x',
+                value: 3,
+                default: longPressSeekSpeed === 3,
+              },
+              {
+                html: '3.5x',
+                value: 3.5,
+                default: longPressSeekSpeed === 3.5,
+              },
+              {
+                html: '4x',
+                value: 4,
+                default: longPressSeekSpeed === 4,
+              },
+              {
+                html: '4.5x',
+                value: 4.5,
+                default: longPressSeekSpeed === 4.5,
+              },
+              {
+                html: '5x',
+                value: 5,
+                default: longPressSeekSpeed === 5,
+              },
+            ],
+            onSelect(item: any) {
+              const newSpeed = item.value;
+              setLongPressSeekSpeed(newSpeed);
+              localStorage.setItem('longPressSeekSpeed', newSpeed.toString());
+              return `当前: ${newSpeed}x`;
+            },
+          },
         ],
         // 控制栏配置
         controls: [
@@ -1508,10 +1561,6 @@ function PlayPageClient() {
             name: 'buffer-progress',
             html: '<div id="buffer-progress-layer" style="position: absolute; bottom: 35px; left: 0; right: 0; height: 4px; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 0.2s ease;"><div id="buffer-bar" style="height: 100%; background: linear-gradient(90deg, rgba(59, 130, 246, 0.6) 0%, rgba(34, 197, 94, 0.6) 100%); border-radius: 2px; width: 0%; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);"></div></div>',
             mounted: function ($el: HTMLElement) {
-              const bufferLayer = $el.querySelector(
-                '#buffer-progress-layer'
-              ) as HTMLElement;
-
               // 使用定时器更新缓冲进度显示
               const updateBuffer = () => {
                 const bufferBar = $el.querySelector(
@@ -1527,23 +1576,6 @@ function PlayPageClient() {
 
               const intervalId = setInterval(updateBuffer, 300);
 
-              // 监听控制栏显示/隐藏事件，同步缓冲进度条的显示状态
-              const handleControlShow = () => {
-                if (bufferLayer) {
-                  bufferLayer.style.opacity = '1';
-                }
-              };
-
-              const handleControlHide = () => {
-                if (bufferLayer) {
-                  bufferLayer.style.opacity = '0';
-                }
-              };
-
-              // 将事件处理器存储到元素上，以便后续清理
-              ($el as any).__handleControlShow = handleControlShow;
-              ($el as any).__handleControlHide = handleControlHide;
-
               // 清理函数
               ($el as any).__cleanup = () => clearInterval(intervalId);
             },
@@ -1554,19 +1586,9 @@ function PlayPageClient() {
       // 监听播放器事件
       artPlayerRef.current.on('ready', () => {
         setError(null);
-
-        // 获取缓冲进度条层
-        const bufferLayer = artRef.current?.querySelector(
-          '#buffer-progress-layer'
-        ) as HTMLElement;
-
-        if (bufferLayer) {
-          // 初始显示缓冲进度条
-          bufferLayer.style.opacity = '1';
-        }
       });
 
-      // 监听控制栏显示事件
+      // 监听控制栏显示事件 - 同步显示缓冲进度条
       artPlayerRef.current.on('control:show', () => {
         const bufferLayer = artRef.current?.querySelector(
           '#buffer-progress-layer'
@@ -1576,7 +1598,7 @@ function PlayPageClient() {
         }
       });
 
-      // 监听控制栏隐藏事件
+      // 监听控制栏隐藏事件 - 同步隐藏缓冲进度条
       artPlayerRef.current.on('control:hide', () => {
         const bufferLayer = artRef.current?.querySelector(
           '#buffer-progress-layer'
