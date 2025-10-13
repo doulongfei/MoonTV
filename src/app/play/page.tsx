@@ -175,6 +175,12 @@ function PlayPageClient() {
   const artPlayerRef = useRef<any>(null);
   const artRef = useRef<HTMLDivElement | null>(null);
 
+  // 缓存状态的 ref，用于在 Artplayer 回调中访问
+  const bufferStatsRef = useRef(bufferStats);
+  useEffect(() => {
+    bufferStatsRef.current = bufferStats;
+  }, [bufferStats]);
+
   // -----------------------------------------------------------------------------
   // 工具函数（Utils）
   // -----------------------------------------------------------------------------
@@ -1307,12 +1313,86 @@ function PlayPageClient() {
         // 控制栏配置
         controls: [
           {
+            position: 'right',
+            index: 10,
+            html: '<div class="art-control art-control-speed" style="padding: 0 10px; display: flex; align-items: center; gap: 6px; color: #fff; font-size: 13px; user-select: none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor"/></svg><span id="art-download-speed" style="font-weight: 500; min-width: 60px;">--</span></div>',
+            tooltip: '下载速度',
+            mounted: function ($el: HTMLElement) {
+              // 使用定时器更新下载速度显示
+              const updateSpeed = () => {
+                const speedEl = $el.querySelector(
+                  '#art-download-speed'
+                ) as HTMLElement;
+                if (speedEl) {
+                  const currentSpeed = bufferStatsRef.current.downloadSpeed;
+                  speedEl.textContent = currentSpeed || '--';
+
+                  // 根据速度设置颜色
+                  if (currentSpeed) {
+                    const speedValue = parseFloat(currentSpeed);
+                    if (currentSpeed.includes('MB/s') && speedValue >= 1) {
+                      speedEl.style.color = '#22c55e'; // 绿色 - 高速
+                    } else if (
+                      currentSpeed.includes('KB/s') &&
+                      speedValue >= 500
+                    ) {
+                      speedEl.style.color = '#3b82f6'; // 蓝色 - 中速
+                    } else if (
+                      currentSpeed.includes('KB/s') &&
+                      speedValue >= 100
+                    ) {
+                      speedEl.style.color = '#f59e0b'; // 橙色 - 低速
+                    } else {
+                      speedEl.style.color = '#ef4444'; // 红色 - 很慢
+                    }
+                  } else {
+                    speedEl.style.color = '#9ca3af'; // 灰色 - 无数据
+                  }
+                }
+              };
+
+              const intervalId = setInterval(updateSpeed, 500);
+
+              // 清理函数
+              ($el as any).__cleanup = () => clearInterval(intervalId);
+            },
+          },
+          {
             position: 'left',
             index: 13,
             html: '<i class="art-icon flex"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" fill="currentColor"/></svg></i>',
             tooltip: '播放下一集',
             click: function () {
               handleNextEpisode();
+            },
+          },
+        ],
+        // 自定义层 - 在进度条上显示缓冲进度
+        layers: [
+          {
+            name: 'buffer-progress',
+            html: '<div id="buffer-progress-layer" style="position: absolute; bottom: 35px; left: 0; right: 0; height: 4px; pointer-events: none; z-index: 10;"><div id="buffer-bar" style="height: 100%; background: linear-gradient(90deg, rgba(59, 130, 246, 0.6) 0%, rgba(34, 197, 94, 0.6) 100%); border-radius: 2px; width: 0%; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);"></div></div>',
+            mounted: function ($el: HTMLElement) {
+              // 使用定时器更新缓冲进度显示
+              const updateBuffer = () => {
+                const bufferBar = $el.querySelector(
+                  '#buffer-bar'
+                ) as HTMLElement;
+                if (bufferBar) {
+                  const stats = bufferStatsRef.current;
+                  if (stats.isActive && stats.bufferProgress > 0) {
+                    bufferBar.style.width = `${stats.bufferProgress}%`;
+                    bufferBar.style.opacity = '1';
+                  } else {
+                    bufferBar.style.opacity = '0';
+                  }
+                }
+              };
+
+              const intervalId = setInterval(updateBuffer, 300);
+
+              // 清理函数
+              ($el as any).__cleanup = () => clearInterval(intervalId);
             },
           },
         ],
