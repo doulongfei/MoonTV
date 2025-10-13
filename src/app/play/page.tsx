@@ -777,8 +777,16 @@ function PlayPageClient() {
   const startLongPressSeek = () => {
     if (!artPlayerRef.current) return;
 
-    // 记录当前的播放倍速
-    originalPlaybackRateRef.current = artPlayerRef.current.playbackRate;
+    // 记录当前的播放倍速，确保至少为1
+    const currentRate = artPlayerRef.current.playbackRate || 1;
+    originalPlaybackRateRef.current = currentRate;
+
+    console.log(
+      '长按快进开始 - 原始倍速:',
+      currentRate,
+      '快进倍速:',
+      longPressSeekSpeed
+    );
 
     setIsLongPressing(true);
 
@@ -793,8 +801,11 @@ function PlayPageClient() {
   const stopLongPressSeek = () => {
     if (!artPlayerRef.current) return;
 
-    // 恢复到长按前的播放倍速
-    artPlayerRef.current.playbackRate = originalPlaybackRateRef.current;
+    // 恢复到长按前的播放倍速，确保有有效值
+    const restoreRate = originalPlaybackRateRef.current || 1;
+    artPlayerRef.current.playbackRate = restoreRate;
+
+    console.log('长按快进结束 - 恢复倍速:', restoreRate);
 
     setIsLongPressing(false);
 
@@ -1239,7 +1250,7 @@ function PlayPageClient() {
         theme: '#22c55e',
         lang: 'zh-cn',
         hotkey: true,
-        fastForward: true,
+        fastForward: false, // 禁用默认长按快进，使用自定义实现
         autoOrientation: true,
         lock: true,
         moreVideoAttr: {
