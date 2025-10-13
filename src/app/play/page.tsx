@@ -49,6 +49,15 @@ function PlayPageClient() {
   // 收藏状态
   const [favorited, setFavorited] = useState(false);
 
+  // 缓存速度监控状态
+  const [bufferStats, setBufferStats] = useState({
+    downloadSpeed: '',
+    bufferProgress: 0,
+    currentBuffer: 0,
+    maxBuffer: 0,
+    isActive: false,
+  });
+
   // 去广告开关（从 localStorage 继承，默认 true）
   const [blockAdEnabled, setBlockAdEnabled] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -1149,6 +1158,99 @@ function PlayPageClient() {
 
             ensureVideoSource(video, url);
 
+            // 监听分片加载进度 - 实时计算下载速度
+            let lastLoadedBytes = 0;
+            let lastLoadTime = Date.now();
+            const maxBufferLength = isMobile ? 30 : 90;
+
+            hls.on(Hls.Events.FRAG_LOADED, function (_event: any, data: any) {
+              const currentTime = Date.now();
+              const timeDiff = (currentTime - lastLoadTime) / 1000; // 转换为秒
+
+              if (data.frag && data.frag.stats && timeDiff > 0) {
+                const loadedBytes = data.frag.stats.total || 0;
+                const bytesDiff = loadedBytes - lastLoadedBytes;
+
+                if (bytesDiff > 0) {
+                  const speedBps = bytesDiff / timeDiff; // 字节/秒
+                  const speedKBps = speedBps / 1024;
+                  const speedMBps = speedKBps / 1024;
+
+                  let speedText = '';
+                  if (speedMBps >= 1) {
+                    speedText = `${speedMBps.toFixed(2)} MB/s`;
+                  } else if (speedKBps >= 1) {
+                    speedText = `${speedKBps.toFixed(0)} KB/s`;
+                  } else {
+                    speedText = `${(speedBps / 1024).toFixed(1)} KB/s`;
+                  }
+
+                  // 计算缓冲进度
+                  const buffered = video.buffered;
+                  let bufferEnd = 0;
+                  if (buffered.length > 0) {
+                    bufferEnd = buffered.end(buffered.length - 1);
+                  }
+                  const videoCurrentTime = video.currentTime || 0;
+                  const bufferedSeconds = Math.max(
+                    0,
+                    bufferEnd - videoCurrentTime
+                  );
+                  const bufferPercent = Math.min(
+                    100,
+                    (bufferedSeconds / maxBufferLength) * 100
+                  );
+
+                  setBufferStats({
+                    downloadSpeed: speedText,
+                    bufferProgress: Math.round(bufferPercent),
+                    currentBuffer: Math.round(bufferedSeconds),
+                    maxBuffer: maxBufferLength,
+                    isActive: true,
+                  });
+                }
+
+                lastLoadedBytes = loadedBytes;
+                lastLoadTime = currentTime;
+              }
+            });
+
+            // 监听缓冲更新
+            const updateBufferProgress = () => {
+              const buffered = video.buffered;
+              let bufferEnd = 0;
+              if (buffered.length > 0) {
+                bufferEnd = buffered.end(buffered.length - 1);
+              }
+              const videoCurrentTime = video.currentTime || 0;
+              const bufferedSeconds = Math.max(0, bufferEnd - videoCurrentTime);
+              const bufferPercent = Math.min(
+                100,
+                (bufferedSeconds / maxBufferLength) * 100
+              );
+
+              setBufferStats((prev) => ({
+                ...prev,
+                bufferProgress: Math.round(bufferPercent),
+                currentBuffer: Math.round(bufferedSeconds),
+                maxBuffer: maxBufferLength,
+              }));
+            };
+
+            video.addEventListener('progress', updateBufferProgress);
+            video.addEventListener('timeupdate', updateBufferProgress);
+
+            // 清理时重置状态
+            hls.on(Hls.Events.DESTROYING, () => {
+              setBufferStats({
+                downloadSpeed: '',
+                bufferProgress: 0,
+                currentBuffer: 0,
+                maxBuffer: 0,
+                isActive: false,
+              });
+            });
+
             hls.on(Hls.Events.ERROR, function (event: any, data: any) {
               console.error('HLS Error:', event, data);
               if (data.fatal) {
@@ -1545,6 +1647,52 @@ function PlayPageClient() {
                   ref={artRef}
                   className='bg-black w-full h-full rounded-xl overflow-hidden shadow-lg'
                 ></div>
+
+                {/* 缓存速度监控面板 */}
+                {!isVideoLoading &&
+                  bufferStats.isActive &&
+                  bufferStats.downloadSpeed && (
+                    <div className='absolute top-4 right-4 bg-black/75 backdrop-blur-md rounded-lg px-4 py-3 shadow-2xl border border-white/10 z-[400] min-w-[220px]'>
+                      {/* 下载速度 */}
+                      <div className='flex items-center justify-between mb-3'>
+                        <div className='flex items-center space-x-2'>
+                          <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse'></div>
+                          <span className='text-xs font-medium text-gray-300'>
+                            下载速度
+                          </span>
+                        </div>
+                        <span className='text-sm font-bold text-green-400'>
+                          {bufferStats.downloadSpeed}
+                        </span>
+                      </div>
+
+                      {/* 缓冲进度条 */}
+                      <div className='space-y-1.5'>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-xs text-gray-400'>
+                            缓冲进度
+                          </span>
+                          <span className='text-xs font-semibold text-blue-400'>
+                            {bufferStats.currentBuffer}s /{' '}
+                            {bufferStats.maxBuffer}s
+                          </span>
+                        </div>
+                        <div className='w-full bg-gray-700/50 rounded-full h-2 overflow-hidden'>
+                          <div
+                            className='h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300 ease-out relative'
+                            style={{ width: `${bufferStats.bufferProgress}%` }}
+                          >
+                            <div className='absolute inset-0 bg-white/20 animate-pulse'></div>
+                          </div>
+                        </div>
+                        <div className='text-right'>
+                          <span className='text-xs font-medium text-cyan-400'>
+                            {bufferStats.bufferProgress}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                 {/* 换源加载蒙层 */}
                 {isVideoLoading && (
