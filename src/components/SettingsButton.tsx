@@ -13,6 +13,7 @@ export const SettingsButton: React.FC = () => {
   const [imageProxyUrl, setImageProxyUrl] = useState('');
   const [enableOptimization, setEnableOptimization] = useState(true);
   const [enableImageProxy, setEnableImageProxy] = useState(false);
+  const [longPressSeekSpeed, setLongPressSeekSpeed] = useState(2);
   const [mounted, setMounted] = useState(false);
 
   // 确保组件已挂载
@@ -57,6 +58,12 @@ export const SettingsButton: React.FC = () => {
       if (savedEnableOptimization !== null) {
         setEnableOptimization(JSON.parse(savedEnableOptimization));
       }
+
+      const savedLongPressSeekSpeed =
+        localStorage.getItem('longPressSeekSpeed');
+      if (savedLongPressSeekSpeed !== null) {
+        setLongPressSeekSpeed(parseFloat(savedLongPressSeekSpeed));
+      }
     }
   }, []);
 
@@ -96,6 +103,13 @@ export const SettingsButton: React.FC = () => {
     }
   };
 
+  const handleLongPressSeekSpeedChange = (value: number) => {
+    setLongPressSeekSpeed(value);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('longPressSeekSpeed', value.toString());
+    }
+  };
+
   const handleSettingsClick = () => {
     setIsOpen(!isOpen);
   };
@@ -114,6 +128,7 @@ export const SettingsButton: React.FC = () => {
     setDoubanProxyUrl('');
     setEnableImageProxy(!!defaultImageProxy);
     setImageProxyUrl(defaultImageProxy);
+    setLongPressSeekSpeed(2);
 
     // 保存到 localStorage
     if (typeof window !== 'undefined') {
@@ -125,6 +140,7 @@ export const SettingsButton: React.FC = () => {
         JSON.stringify(!!defaultImageProxy)
       );
       localStorage.setItem('imageProxyUrl', defaultImageProxy);
+      localStorage.setItem('longPressSeekSpeed', '2');
     }
   };
 
@@ -277,6 +293,41 @@ export const SettingsButton: React.FC = () => {
               onChange={(e) => handleImageProxyUrlChange(e.target.value)}
               disabled={!enableImageProxy}
             />
+          </div>
+
+          {/* 长按快进倍速设置 */}
+          <div className='space-y-3'>
+            <div>
+              <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                长按快进倍速
+              </h4>
+              <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                手机端长按屏幕右边快进时的播放倍速（默认 2x）
+              </p>
+            </div>
+            <div className='flex items-center gap-3'>
+              <input
+                type='range'
+                min='1.5'
+                max='5'
+                step='0.5'
+                value={longPressSeekSpeed}
+                onChange={(e) =>
+                  handleLongPressSeekSpeedChange(parseFloat(e.target.value))
+                }
+                className='flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500'
+              />
+              <span className='text-sm font-semibold text-gray-800 dark:text-gray-200 min-w-[3rem] text-right'>
+                {longPressSeekSpeed}x
+              </span>
+            </div>
+            <div className='flex justify-between text-xs text-gray-500 dark:text-gray-400 px-1'>
+              <span>1.5x</span>
+              <span>2x</span>
+              <span>3x</span>
+              <span>4x</span>
+              <span>5x</span>
+            </div>
           </div>
         </div>
 

@@ -58,6 +58,14 @@ function PlayPageClient() {
     isActive: false,
   });
 
+  // 长按快进相关状态
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const [longPressSeekSpeed, setLongPressSeekSpeed] = useState(2);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const seekIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartXRef = useRef<number>(0);
+  const touchStartYRef = useRef<number>(0);
+
   // 去广告开关（从 localStorage 继承，默认 true）
   const [blockAdEnabled, setBlockAdEnabled] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -70,6 +78,16 @@ function PlayPageClient() {
   useEffect(() => {
     blockAdEnabledRef.current = blockAdEnabled;
   }, [blockAdEnabled]);
+
+  // 从 localStorage 读取长按快进倍速设置
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedSpeed = localStorage.getItem('longPressSeekSpeed');
+      if (savedSpeed !== null) {
+        setLongPressSeekSpeed(parseFloat(savedSpeed));
+      }
+    }
+  }, []);
 
   // 视频基本信息
   const [videoTitle, setVideoTitle] = useState(searchParams.get('title') || '');
@@ -736,6 +754,112 @@ function PlayPageClient() {
     document.addEventListener('keydown', handleKeyboardShortcuts);
     return () => {
       document.removeEventListener('keydown', handleKeyboardShortcuts);
+    };
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // 触摸快进功能（仅移动端）
+  // ---------------------------------------------------------------------------
+  // 清理定时器的辅助函数
+  const clearLongPressTimers = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    if (seekIntervalRef.current) {
+      clearInterval(seekIntervalRef.current);
+      seekIntervalRef.current = null;
+    }
+  };
+
+  // 开始长按快进
+  const startLongPressSeek = () => {
+    if (!artPlayerRef.current) return;
+
+    setIsLongPressing(true);
+
+    // 设置播放倍速
+    artPlayerRef.current.playbackRate = longPressSeekSpeed;
+
+    // 显示提示
+    artPlayerRef.current.notice.show = `快进中 ${longPressSeekSpeed}x`;
+  };
+
+  // 停止长按快进
+  const stopLongPressSeek = () => {
+    if (!artPlayerRef.current) return;
+
+    // 恢复正常播放速度
+    artPlayerRef.current.playbackRate = 1;
+
+    setIsLongPressing(false);
+
+    // 清除提示
+    artPlayerRef.current.notice.show = '';
+
+    clearLongPressTimers();
+  };
+
+  // 触摸开始事件
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!artPlayerRef.current) return;
+
+    const touch = e.touches[0];
+    const containerWidth = e.currentTarget.clientWidth;
+
+    // 记录触摸起始位置
+    touchStartXRef.current = touch.clientX;
+    touchStartYRef.current = touch.clientY;
+
+    // 判断是否在屏幕右侧 30% 区域
+    if (touch.clientX > containerWidth * 0.7) {
+      // 设置长按定时器（500ms后触发）
+      longPressTimerRef.current = setTimeout(() => {
+        startLongPressSeek();
+      }, 500);
+    }
+  };
+
+  // 触摸移动事件
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!longPressTimerRef.current && !isLongPressing) return;
+
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartXRef.current);
+    const deltaY = Math.abs(touch.clientY - touchStartYRef.current);
+
+    // 如果移动距离超过10px，取消长按
+    if (deltaX > 10 || deltaY > 10) {
+      if (isLongPressing) {
+        stopLongPressSeek();
+      } else {
+        clearLongPressTimers();
+      }
+    }
+  };
+
+  // 触摸结束事件
+  const handleTouchEnd = () => {
+    if (isLongPressing) {
+      stopLongPressSeek();
+    } else {
+      clearLongPressTimers();
+    }
+  };
+
+  // 触摸取消事件
+  const handleTouchCancel = () => {
+    if (isLongPressing) {
+      stopLongPressSeek();
+    } else {
+      clearLongPressTimers();
+    }
+  };
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      clearLongPressTimers();
     };
   }, []);
 
@@ -1773,7 +1897,30 @@ function PlayPageClient() {
                 <div
                   ref={artRef}
                   className='bg-black w-full h-full rounded-xl overflow-hidden shadow-lg'
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={handleTouchCancel}
                 ></div>
+
+                {/* 长按快进视觉提示 */}
+                {isLongPressing && (
+                  <div className='absolute inset-0 pointer-events-none z-[500] flex items-center justify-center'>
+                    <div className='bg-black/80 backdrop-blur-sm rounded-2xl px-8 py-6 shadow-2xl border border-green-500/50 animate-pulse'>
+                      <div className='flex items-center gap-4'>
+                        <div className='text-5xl animate-bounce'>⏩</div>
+                        <div className='text-white'>
+                          <div className='text-3xl font-bold text-green-400'>
+                            {longPressSeekSpeed}x
+                          </div>
+                          <div className='text-sm opacity-80 mt-1'>
+                            快进中...
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 缓存速度监控面板 */}
                 {!isVideoLoading &&
