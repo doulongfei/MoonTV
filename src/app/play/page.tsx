@@ -65,6 +65,7 @@ function PlayPageClient() {
   const seekIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartXRef = useRef<number>(0);
   const touchStartYRef = useRef<number>(0);
+  const originalPlaybackRateRef = useRef<number>(1); // 记录长按前的播放倍速
 
   // 去广告开关（从 localStorage 继承，默认 true）
   const [blockAdEnabled, setBlockAdEnabled] = useState<boolean>(() => {
@@ -776,9 +777,12 @@ function PlayPageClient() {
   const startLongPressSeek = () => {
     if (!artPlayerRef.current) return;
 
+    // 记录当前的播放倍速
+    originalPlaybackRateRef.current = artPlayerRef.current.playbackRate;
+
     setIsLongPressing(true);
 
-    // 设置播放倍速
+    // 设置快进倍速
     artPlayerRef.current.playbackRate = longPressSeekSpeed;
 
     // 显示提示
@@ -789,8 +793,8 @@ function PlayPageClient() {
   const stopLongPressSeek = () => {
     if (!artPlayerRef.current) return;
 
-    // 恢复正常播放速度
-    artPlayerRef.current.playbackRate = 1;
+    // 恢复到长按前的播放倍速
+    artPlayerRef.current.playbackRate = originalPlaybackRateRef.current;
 
     setIsLongPressing(false);
 
@@ -1586,6 +1590,23 @@ function PlayPageClient() {
       // 监听播放器事件
       artPlayerRef.current.on('ready', () => {
         setError(null);
+
+        // 播放器就绪后，检查控制栏状态并同步缓冲进度条
+        // 使用 setTimeout 确保控制栏已经完成初始化
+        setTimeout(() => {
+          const bufferLayer = artRef.current?.querySelector(
+            '#buffer-progress-layer'
+          ) as HTMLElement;
+
+          if (bufferLayer && artPlayerRef.current) {
+            // 根据控制栏的显示状态来设置缓冲进度条
+            // Artplayer 初始会显示控制栏，然后在自动播放时隐藏
+            const controls = artPlayerRef.current.controls;
+            if (controls && controls.show) {
+              bufferLayer.style.opacity = '1';
+            }
+          }
+        }, 1000);
       });
 
       // 监听控制栏显示事件 - 同步显示缓冲进度条
