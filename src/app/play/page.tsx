@@ -1632,17 +1632,23 @@ function PlayPageClient() {
 
       // 监听控制栏隐藏事件 - 同步隐藏缓冲进度条（仅播放中）
       artPlayerRef.current.on('control:hide', () => {
-        // 只有在播放中才隐藏，暂停时保持显示
-        if (artPlayerRef.current && !artPlayerRef.current.playing) {
-          return; // 暂停时不隐藏
-        }
-
         const bufferLayer = artRef.current?.querySelector(
           '#buffer-progress-layer'
         ) as HTMLElement;
-        if (bufferLayer) {
-          bufferLayer.style.opacity = '0';
+
+        if (!bufferLayer || !artPlayerRef.current) return;
+
+        // 只有在播放中才隐藏，暂停时保持显示
+        // 检查视频是否暂停
+        const isPaused = artPlayerRef.current.video?.paused ?? true;
+
+        if (isPaused) {
+          console.log('控制栏隐藏，但视频暂停中，保持缓冲进度条显示');
+          return; // 暂停时不隐藏
         }
+
+        console.log('控制栏隐藏，视频播放中，隐藏缓冲进度条');
+        bufferLayer.style.opacity = '0';
       });
 
       // 监听暂停事件 - 暂停时始终显示缓冲进度条
@@ -1661,20 +1667,28 @@ function PlayPageClient() {
         const bufferLayer = artRef.current?.querySelector(
           '#buffer-progress-layer'
         ) as HTMLElement;
-        if (bufferLayer && artPlayerRef.current) {
-          // 播放开始时，短暂显示缓冲进度条，然后跟随控制栏自动隐藏
-          bufferLayer.style.opacity = '1';
 
-          // 如果控制栏隐藏，也隐藏缓冲进度条
-          setTimeout(() => {
-            if (artPlayerRef.current && artPlayerRef.current.playing) {
-              const controls = artPlayerRef.current.controls;
-              if (controls && !controls.show) {
-                bufferLayer.style.opacity = '0';
-              }
+        if (!bufferLayer || !artPlayerRef.current) return;
+
+        console.log('播放事件触发，显示缓冲进度条');
+        // 播放开始时，短暂显示缓冲进度条
+        bufferLayer.style.opacity = '1';
+
+        // 如果控制栏隐藏，也隐藏缓冲进度条
+        setTimeout(() => {
+          if (!artPlayerRef.current) return;
+
+          // 检查视频是否仍在播放
+          const isPaused = artPlayerRef.current.video?.paused ?? true;
+
+          if (!isPaused) {
+            const controls = artPlayerRef.current.controls;
+            if (controls && !controls.show) {
+              console.log('播放中且控制栏隐藏，隐藏缓冲进度条');
+              bufferLayer.style.opacity = '0';
             }
-          }, 100);
-        }
+          }
+        }, 100);
       });
 
       artPlayerRef.current.on('video:volumechange', () => {
