@@ -1506,8 +1506,12 @@ function PlayPageClient() {
         layers: [
           {
             name: 'buffer-progress',
-            html: '<div id="buffer-progress-layer" style="position: absolute; bottom: 35px; left: 0; right: 0; height: 4px; pointer-events: none; z-index: 10;"><div id="buffer-bar" style="height: 100%; background: linear-gradient(90deg, rgba(59, 130, 246, 0.6) 0%, rgba(34, 197, 94, 0.6) 100%); border-radius: 2px; width: 0%; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);"></div></div>',
+            html: '<div id="buffer-progress-layer" style="position: absolute; bottom: 35px; left: 0; right: 0; height: 4px; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 0.2s ease;"><div id="buffer-bar" style="height: 100%; background: linear-gradient(90deg, rgba(59, 130, 246, 0.6) 0%, rgba(34, 197, 94, 0.6) 100%); border-radius: 2px; width: 0%; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);"></div></div>',
             mounted: function ($el: HTMLElement) {
+              const bufferLayer = $el.querySelector(
+                '#buffer-progress-layer'
+              ) as HTMLElement;
+
               // 使用定时器更新缓冲进度显示
               const updateBuffer = () => {
                 const bufferBar = $el.querySelector(
@@ -1517,14 +1521,28 @@ function PlayPageClient() {
                   const stats = bufferStatsRef.current;
                   if (stats.isActive && stats.bufferProgress > 0) {
                     bufferBar.style.width = `${stats.bufferProgress}%`;
-                    bufferBar.style.opacity = '1';
-                  } else {
-                    bufferBar.style.opacity = '0';
                   }
                 }
               };
 
               const intervalId = setInterval(updateBuffer, 300);
+
+              // 监听控制栏显示/隐藏事件，同步缓冲进度条的显示状态
+              const handleControlShow = () => {
+                if (bufferLayer) {
+                  bufferLayer.style.opacity = '1';
+                }
+              };
+
+              const handleControlHide = () => {
+                if (bufferLayer) {
+                  bufferLayer.style.opacity = '0';
+                }
+              };
+
+              // 将事件处理器存储到元素上，以便后续清理
+              ($el as any).__handleControlShow = handleControlShow;
+              ($el as any).__handleControlHide = handleControlHide;
 
               // 清理函数
               ($el as any).__cleanup = () => clearInterval(intervalId);
@@ -1536,6 +1554,36 @@ function PlayPageClient() {
       // 监听播放器事件
       artPlayerRef.current.on('ready', () => {
         setError(null);
+
+        // 获取缓冲进度条层
+        const bufferLayer = artRef.current?.querySelector(
+          '#buffer-progress-layer'
+        ) as HTMLElement;
+
+        if (bufferLayer) {
+          // 初始显示缓冲进度条
+          bufferLayer.style.opacity = '1';
+        }
+      });
+
+      // 监听控制栏显示事件
+      artPlayerRef.current.on('control:show', () => {
+        const bufferLayer = artRef.current?.querySelector(
+          '#buffer-progress-layer'
+        ) as HTMLElement;
+        if (bufferLayer) {
+          bufferLayer.style.opacity = '1';
+        }
+      });
+
+      // 监听控制栏隐藏事件
+      artPlayerRef.current.on('control:hide', () => {
+        const bufferLayer = artRef.current?.querySelector(
+          '#buffer-progress-layer'
+        ) as HTMLElement;
+        if (bufferLayer) {
+          bufferLayer.style.opacity = '0';
+        }
       });
 
       artPlayerRef.current.on('video:volumechange', () => {
