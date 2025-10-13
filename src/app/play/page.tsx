@@ -1570,21 +1570,38 @@ function PlayPageClient() {
             },
           },
         ],
-        // 自定义层 - 在进度条上显示缓冲进度
+        // 自定义层 - 在播放器顶部显示缓冲进度
         layers: [
           {
             name: 'buffer-progress',
-            html: '<div id="buffer-progress-layer" style="position: absolute; bottom: 35px; left: 0; right: 0; height: 4px; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 0.2s ease;"><div id="buffer-bar" style="height: 100%; background: linear-gradient(90deg, rgba(59, 130, 246, 0.6) 0%, rgba(34, 197, 94, 0.6) 100%); border-radius: 2px; width: 0%; transition: width 0.3s ease; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);"></div></div>',
+            html: '<div id="buffer-progress-layer" style="position: absolute; top: 0; left: 0; right: 0; height: 3px; pointer-events: none; z-index: 10; opacity: 0; transition: opacity 0.2s ease;"><div id="buffer-bar" style="height: 100%; background: linear-gradient(90deg, rgba(59, 130, 246, 0.8) 0%, rgba(34, 197, 94, 0.8) 100%); width: 0%; transition: width 0.3s ease; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.6);"></div></div>',
             mounted: function ($el: HTMLElement) {
+              const bufferLayer = $el.querySelector(
+                '#buffer-progress-layer'
+              ) as HTMLElement;
+
               // 使用定时器更新缓冲进度显示
               const updateBuffer = () => {
                 const bufferBar = $el.querySelector(
                   '#buffer-bar'
                 ) as HTMLElement;
-                if (bufferBar) {
+
+                if (bufferBar && bufferLayer) {
                   const stats = bufferStatsRef.current;
-                  if (stats.isActive && stats.bufferProgress > 0) {
+                  if (stats.isActive) {
+                    // 更新进度条宽度
                     bufferBar.style.width = `${stats.bufferProgress}%`;
+
+                    // 根据缓冲进度决定是否显示
+                    // 只要缓冲未达到100%就显示，达到100%后隐藏
+                    if (
+                      stats.bufferProgress > 0 &&
+                      stats.bufferProgress < 100
+                    ) {
+                      bufferLayer.style.opacity = '1';
+                    } else if (stats.bufferProgress >= 100) {
+                      bufferLayer.style.opacity = '0';
+                    }
                   }
                 }
               };
@@ -1601,98 +1618,16 @@ function PlayPageClient() {
       // 监听播放器事件
       artPlayerRef.current.on('ready', () => {
         setError(null);
-
-        // 播放器就绪后，检查控制栏状态并同步缓冲进度条
-        // 使用 setTimeout 确保控制栏已经完成初始化
-        setTimeout(() => {
-          const bufferLayer = artRef.current?.querySelector(
-            '#buffer-progress-layer'
-          ) as HTMLElement;
-
-          if (bufferLayer && artPlayerRef.current) {
-            // 根据控制栏的显示状态来设置缓冲进度条
-            // Artplayer 初始会显示控制栏，然后在自动播放时隐藏
-            const controls = artPlayerRef.current.controls;
-            if (controls && controls.show) {
-              bufferLayer.style.opacity = '1';
-            }
-          }
-        }, 1000);
-      });
-
-      // 监听控制栏显示事件 - 同步显示缓冲进度条（播放中）
-      artPlayerRef.current.on('control:show', () => {
-        const bufferLayer = artRef.current?.querySelector(
-          '#buffer-progress-layer'
-        ) as HTMLElement;
-        if (bufferLayer) {
-          bufferLayer.style.opacity = '1';
-        }
-      });
-
-      // 监听控制栏隐藏事件 - 同步隐藏缓冲进度条（仅播放中）
-      artPlayerRef.current.on('control:hide', () => {
-        const bufferLayer = artRef.current?.querySelector(
-          '#buffer-progress-layer'
-        ) as HTMLElement;
-
-        if (!bufferLayer || !artPlayerRef.current) return;
-
-        // 只有在播放中才隐藏，暂停时保持显示
-        // 检查视频是否暂停
-        const isPaused = artPlayerRef.current.video?.paused ?? true;
-
-        if (isPaused) {
-          console.log('控制栏隐藏，但视频暂停中，保持缓冲进度条显示');
-          return; // 暂停时不隐藏
-        }
-
-        console.log('控制栏隐藏，视频播放中，隐藏缓冲进度条');
-        bufferLayer.style.opacity = '0';
-      });
-
-      // 监听暂停事件 - 暂停时始终显示缓冲进度条
-      artPlayerRef.current.on('pause', () => {
-        const bufferLayer = artRef.current?.querySelector(
-          '#buffer-progress-layer'
-        ) as HTMLElement;
-        if (bufferLayer) {
-          bufferLayer.style.opacity = '1';
-        }
-        saveCurrentPlayProgress();
-      });
-
-      // 监听播放事件 - 播放时根据控制栏状态决定是否显示
-      artPlayerRef.current.on('play', () => {
-        const bufferLayer = artRef.current?.querySelector(
-          '#buffer-progress-layer'
-        ) as HTMLElement;
-
-        if (!bufferLayer || !artPlayerRef.current) return;
-
-        console.log('播放事件触发，显示缓冲进度条');
-        // 播放开始时，短暂显示缓冲进度条
-        bufferLayer.style.opacity = '1';
-
-        // 如果控制栏隐藏，也隐藏缓冲进度条
-        setTimeout(() => {
-          if (!artPlayerRef.current) return;
-
-          // 检查视频是否仍在播放
-          const isPaused = artPlayerRef.current.video?.paused ?? true;
-
-          if (!isPaused) {
-            const controls = artPlayerRef.current.controls;
-            if (controls && !controls.show) {
-              console.log('播放中且控制栏隐藏，隐藏缓冲进度条');
-              bufferLayer.style.opacity = '0';
-            }
-          }
-        }, 100);
+        // 缓冲进度条现在完全由缓冲状态控制，不需要手动初始化
       });
 
       artPlayerRef.current.on('video:volumechange', () => {
         lastVolumeRef.current = artPlayerRef.current.volume;
+      });
+
+      // 监听暂停事件 - 保存播放进度
+      artPlayerRef.current.on('pause', () => {
+        saveCurrentPlayProgress();
       });
 
       // 监听视频可播放事件，这时恢复播放进度更可靠
