@@ -1609,7 +1609,7 @@ function PlayPageClient() {
         }, 1000);
       });
 
-      // 监听控制栏显示事件 - 同步显示缓冲进度条
+      // 监听控制栏显示事件 - 同步显示缓冲进度条（播放中）
       artPlayerRef.current.on('control:show', () => {
         const bufferLayer = artRef.current?.querySelector(
           '#buffer-progress-layer'
@@ -1619,13 +1619,50 @@ function PlayPageClient() {
         }
       });
 
-      // 监听控制栏隐藏事件 - 同步隐藏缓冲进度条
+      // 监听控制栏隐藏事件 - 同步隐藏缓冲进度条（仅播放中）
       artPlayerRef.current.on('control:hide', () => {
+        // 只有在播放中才隐藏，暂停时保持显示
+        if (artPlayerRef.current && !artPlayerRef.current.playing) {
+          return; // 暂停时不隐藏
+        }
+
         const bufferLayer = artRef.current?.querySelector(
           '#buffer-progress-layer'
         ) as HTMLElement;
         if (bufferLayer) {
           bufferLayer.style.opacity = '0';
+        }
+      });
+
+      // 监听暂停事件 - 暂停时始终显示缓冲进度条
+      artPlayerRef.current.on('pause', () => {
+        const bufferLayer = artRef.current?.querySelector(
+          '#buffer-progress-layer'
+        ) as HTMLElement;
+        if (bufferLayer) {
+          bufferLayer.style.opacity = '1';
+        }
+        saveCurrentPlayProgress();
+      });
+
+      // 监听播放事件 - 播放时根据控制栏状态决定是否显示
+      artPlayerRef.current.on('play', () => {
+        const bufferLayer = artRef.current?.querySelector(
+          '#buffer-progress-layer'
+        ) as HTMLElement;
+        if (bufferLayer && artPlayerRef.current) {
+          // 播放开始时，短暂显示缓冲进度条，然后跟随控制栏自动隐藏
+          bufferLayer.style.opacity = '1';
+
+          // 如果控制栏隐藏，也隐藏缓冲进度条
+          setTimeout(() => {
+            if (artPlayerRef.current && artPlayerRef.current.playing) {
+              const controls = artPlayerRef.current.controls;
+              if (controls && !controls.show) {
+                bufferLayer.style.opacity = '0';
+              }
+            }
+          }, 100);
         }
       });
 
@@ -1691,10 +1728,6 @@ function PlayPageClient() {
           saveCurrentPlayProgress();
           lastSaveTimeRef.current = now;
         }
-      });
-
-      artPlayerRef.current.on('pause', () => {
-        saveCurrentPlayProgress();
       });
 
       // 添加空格键播放/暂停功能
@@ -1997,16 +2030,14 @@ function PlayPageClient() {
                 {/* 长按快进视觉提示 */}
                 {isLongPressing && (
                   <div className='absolute inset-0 pointer-events-none z-[500] flex items-center justify-center'>
-                    <div className='bg-black/80 backdrop-blur-sm rounded-2xl px-8 py-6 shadow-2xl border border-green-500/50 animate-pulse'>
-                      <div className='flex items-center gap-4'>
-                        <div className='text-5xl animate-bounce'>⏩</div>
-                        <div className='text-white'>
-                          <div className='text-3xl font-bold text-green-400'>
-                            {longPressSeekSpeed}x
-                          </div>
-                          <div className='text-sm opacity-80 mt-1'>
-                            快进中...
-                          </div>
+                    <div className='flex items-center gap-4'>
+                      <div className='text-5xl animate-bounce'>⏩</div>
+                      <div className='text-white'>
+                        <div className='text-3xl font-bold text-green-400 drop-shadow-[0_2px_8px_rgba(34,197,94,0.8)]'>
+                          {longPressSeekSpeed}x
+                        </div>
+                        <div className='text-sm opacity-80 mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'>
+                          快进中...
                         </div>
                       </div>
                     </div>
@@ -2017,16 +2048,16 @@ function PlayPageClient() {
                 {!isVideoLoading &&
                   bufferStats.isActive &&
                   bufferStats.downloadSpeed && (
-                    <div className='absolute top-4 right-4 bg-black/75 backdrop-blur-md rounded-lg px-4 py-3 shadow-2xl border border-white/10 z-[400] min-w-[220px]'>
+                    <div className='absolute top-4 right-4 px-4 py-3 z-[400] min-w-[220px]'>
                       {/* 下载速度 */}
                       <div className='flex items-center justify-between mb-3'>
                         <div className='flex items-center space-x-2'>
-                          <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse'></div>
-                          <span className='text-xs font-medium text-gray-300'>
+                          <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse drop-shadow-[0_0_4px_rgba(34,197,94,1)]'></div>
+                          <span className='text-xs font-medium text-gray-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'>
                             下载速度
                           </span>
                         </div>
-                        <span className='text-sm font-bold text-green-400'>
+                        <span className='text-sm font-bold text-green-400 drop-shadow-[0_2px_8px_rgba(34,197,94,0.8)]'>
                           {bufferStats.downloadSpeed}
                         </span>
                       </div>
@@ -2034,15 +2065,15 @@ function PlayPageClient() {
                       {/* 缓冲进度条 */}
                       <div className='space-y-1.5'>
                         <div className='flex items-center justify-between'>
-                          <span className='text-xs text-gray-400'>
+                          <span className='text-xs text-gray-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'>
                             缓冲进度
                           </span>
-                          <span className='text-xs font-semibold text-blue-400'>
+                          <span className='text-xs font-semibold text-blue-400 drop-shadow-[0_2px_6px_rgba(59,130,246,0.8)]'>
                             {bufferStats.currentBuffer}s /{' '}
                             {bufferStats.maxBuffer}s
                           </span>
                         </div>
-                        <div className='w-full bg-gray-700/50 rounded-full h-2 overflow-hidden'>
+                        <div className='w-full bg-gray-700/30 rounded-full h-2 overflow-hidden backdrop-blur-sm'>
                           <div
                             className='h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300 ease-out relative'
                             style={{ width: `${bufferStats.bufferProgress}%` }}
@@ -2051,7 +2082,7 @@ function PlayPageClient() {
                           </div>
                         </div>
                         <div className='text-right'>
-                          <span className='text-xs font-medium text-cyan-400'>
+                          <span className='text-xs font-medium text-cyan-400 drop-shadow-[0_2px_6px_rgba(34,211,238,0.8)]'>
                             {bufferStats.bufferProgress}%
                           </span>
                         </div>
