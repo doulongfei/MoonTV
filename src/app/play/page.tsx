@@ -1065,6 +1065,11 @@ function PlayPageClient() {
 
     // WebKit浏览器或首次创建：销毁之前的播放器实例并创建新的
     if (artPlayerRef.current) {
+      // 清理键盘事件监听
+      if ((artPlayerRef.current as any).__keydownCleanup) {
+        (artPlayerRef.current as any).__keydownCleanup();
+      }
+
       if (artPlayerRef.current.video && artPlayerRef.current.video.hls) {
         artPlayerRef.current.video.hls.destroy();
       }
@@ -1293,6 +1298,12 @@ function PlayPageClient() {
                 localStorage.setItem('enable_blockad', String(newVal));
                 if (artPlayerRef.current) {
                   resumeTimeRef.current = artPlayerRef.current.currentTime;
+
+                  // 清理键盘事件监听
+                  if ((artPlayerRef.current as any).__keydownCleanup) {
+                    (artPlayerRef.current as any).__keydownCleanup();
+                  }
+
                   if (
                     artPlayerRef.current.video &&
                     artPlayerRef.current.video.hls
@@ -1471,6 +1482,34 @@ function PlayPageClient() {
         saveCurrentPlayProgress();
       });
 
+      // 添加空格键播放/暂停功能
+      const handleKeyPress = (event: KeyboardEvent) => {
+        // 检查是否是空格键，且不是在输入框中
+        if (
+          event.code === 'Space' &&
+          event.target instanceof HTMLElement &&
+          !['INPUT', 'TEXTAREA'].includes(event.target.tagName)
+        ) {
+          event.preventDefault(); // 阻止默认的页面滚动行为
+
+          if (artPlayerRef.current) {
+            if (artPlayerRef.current.playing) {
+              artPlayerRef.current.pause();
+            } else {
+              artPlayerRef.current.play();
+            }
+          }
+        }
+      };
+
+      // 添加键盘事件监听
+      document.addEventListener('keydown', handleKeyPress);
+
+      // 存储清理函数
+      (artPlayerRef.current as any).__keydownCleanup = () => {
+        document.removeEventListener('keydown', handleKeyPress);
+      };
+
       if (artPlayerRef.current?.video) {
         ensureVideoSource(
           artPlayerRef.current.video as HTMLVideoElement,
@@ -1483,11 +1522,19 @@ function PlayPageClient() {
     }
   }, [Artplayer, Hls, videoUrl, loading, blockAdEnabled]);
 
-  // 当组件卸载时清理定时器
+  // 当组件卸载时清理定时器和事件监听器
   useEffect(() => {
     return () => {
       if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
+      }
+
+      // 清理键盘事件监听器
+      if (
+        artPlayerRef.current &&
+        (artPlayerRef.current as any).__keydownCleanup
+      ) {
+        (artPlayerRef.current as any).__keydownCleanup();
       }
     };
   }, []);
