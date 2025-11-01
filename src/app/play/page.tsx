@@ -1269,9 +1269,7 @@ function PlayPageClient() {
             }
 
             // 检测设备类型
-            const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(
-              navigator.userAgent
-            );
+            const isMobile = false;
 
             const hls = new Hls({
               debug: false, // 关闭日志
