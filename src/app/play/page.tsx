@@ -1268,31 +1268,42 @@ function PlayPageClient() {
               video.hls.destroy();
             }
 
-            // 检测设备类型
+            // 统一使用高性能配置（桌面端参数），不再区分移动端
             const isMobile = false;
 
+            // 缓存配置
+            const bufferConfig = {
+              maxBufferLength: isMobile ? 60 : 120, // 移动端60s，桌面端120s
+              maxMaxBufferLength: isMobile ? 120 : 600, // 移动端2m，桌面端10m
+            };
+
             const hls = new Hls({
-              debug: false, // 关闭日志
-              enableWorker: true, // WebWorker 解码，降低主线程压力
-              lowLatencyMode: true, // 桌面端开启低延迟模式
+              debug: false,
+              enableWorker: true,
+              lowLatencyMode: false, // 关闭低延迟模式以提高稳定性
 
               /* 多线程缓存优化配置 */
-              maxMaxBufferLength: isMobile ? 300 : 600, // 最大缓冲时长: 移动端5分钟，桌面端10分钟
-              maxBufferLength: isMobile ? 30 : 90, // 目标前向缓冲: 移动端30s，桌面端90s
-              backBufferLength: isMobile ? 30 : 60, // 保留已播放内容: 移动端30s，桌面端60s
-              maxBufferSize: isMobile ? 50 * 1000 * 1000 : 150 * 1000 * 1000, // 缓存限制: 移动端50MB，桌面端150MB
-              maxBufferHole: 0.5, // 允许0.5s的缓冲空洞
+              maxMaxBufferLength: bufferConfig.maxMaxBufferLength,
+              maxBufferLength: bufferConfig.maxBufferLength,
+              backBufferLength: isMobile ? 30 : 120,
+              maxBufferSize: isMobile ? 60 * 1000 * 1000 : 300 * 1000 * 1000, // 移动端60MB，桌面端300MB
+              maxBufferHole: 2.0, // 容忍较大的缓冲空洞
 
               /* 网络并发优化 */
-              manifestLoadingMaxRetry: isMobile ? 2 : 3, // manifest重试次数
-              levelLoadingMaxRetry: isMobile ? 2 : 3, // level重试次数
-              fragLoadingMaxRetry: isMobile ? 4 : 6, // 分片重试次数: 桌面端更激进
-              manifestLoadingTimeOut: 10000, // manifest加载超时 10s
-              levelLoadingTimeOut: 10000, // level加载超时 10s
-              fragLoadingTimeOut: 20000, // 分片加载超时 20s
+              manifestLoadingMaxRetry: 4,
+              levelLoadingMaxRetry: 4,
+              fragLoadingMaxRetry: 6,
+              manifestLoadingTimeOut: 10000,
+              levelLoadingTimeOut: 10000,
+              fragLoadingTimeOut: 15000,
 
               /* 启用渐进式下载 */
               progressive: true,
+
+              /* 进一步性能优化配置 */
+              startFragPrefetch: true, // 开启起步片段预加载，提升起步速度
+              capLevelToPlayerSize: true, // 限制分辨率不超过播放器大小，节省带宽并提升加载速度
+              minAutoBitrate: 0, // 自动码率切换的最低门槛
 
               /* 自定义loader */
               loader: blockAdEnabledRef.current
@@ -1309,7 +1320,7 @@ function PlayPageClient() {
             // 监听分片加载进度 - 实时计算下载速度
             let lastLoadedBytes = 0;
             let lastLoadTime = Date.now();
-            const maxBufferLength = isMobile ? 30 : 90;
+            const maxBufferLength = bufferConfig.maxBufferLength;
 
             hls.on(Hls.Events.FRAG_LOADED, function (_event: any, data: any) {
               const currentTime = Date.now();

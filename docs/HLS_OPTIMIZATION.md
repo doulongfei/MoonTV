@@ -19,34 +19,37 @@ const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 #### 桌面端（PC/Laptop）
 
 - **maxMaxBufferLength**: `600s` (10 分钟) - 最大缓冲时长
-- **maxBufferLength**: `90s` - 目标前向缓冲
-- **backBufferLength**: `60s` - 保留已播放内容
-- **maxBufferSize**: `150MB` - 最大缓存大小
+- **maxBufferLength**: `120s` - 目标前向缓冲（提升）
+- **backBufferLength**: `120s` - 保留已播放内容（提升）
+- **maxBufferSize**: `300MB` - 最大缓存大小（提升）
 - **lowLatencyMode**: `false` - 优先流畅度
 
 #### 移动端（手机/平板）
 
-- **maxMaxBufferLength**: `300s` (5 分钟) - 适度缓冲
-- **maxBufferLength**: `30s` - 快速响应
+- **maxMaxBufferLength**: `120s` (2 分钟) - 适度缓冲
+- **maxBufferLength**: `60s` - 快速响应（提升）
 - **backBufferLength**: `30s` - 节省内存
-- **maxBufferSize**: `50MB` - 避免内存压力
+- **maxBufferSize**: `60MB` - 避免内存压力
 - **lowLatencyMode**: `false` - 移动端关闭
 
 ### 3. 网络并发优化
 
 #### 重试策略
 
-| 配置项                  | 桌面端 | 移动端 | 说明                         |
-| ----------------------- | ------ | ------ | ---------------------------- |
-| manifestLoadingMaxRetry | 3      | 2      | manifest 重试次数            |
-| levelLoadingMaxRetry    | 3      | 2      | level 重试次数               |
-| fragLoadingMaxRetry     | 6      | 4      | 分片重试次数（桌面端更激进） |
+- **manifestLoadingMaxRetry**: `4` (统一提升)
+- **levelLoadingMaxRetry**: `4` (统一提升)
+- **fragLoadingMaxRetry**: `6` (统一提升，确保加载成功率)
 
 #### 超时配置
 
 - **manifestLoadingTimeOut**: `10000ms` (10 秒)
 - **levelLoadingTimeOut**: `10000ms` (10 秒)
-- **fragLoadingTimeOut**: `20000ms` (20 秒)
+- **fragLoadingTimeOut**: `15000ms` (15 秒 - 减少等待时间，快速重试)
+
+### 4. 加载性能增强（2026-01-14 新增）
+
+- **startFragPrefetch**: `true` - 开启起步分片预取，首屏加载后立即请求下一分片，显著减少起步卡顿。
+- **capLevelToPlayerSize**: `true` - 自动限制视频最高分辨率不明显超过播放器显示尺寸。在小窗口或移动端播放时，避免下载不必要的超清分片，大幅节省带宽并提升加载速度。
 
 ### 4. 其他优化
 

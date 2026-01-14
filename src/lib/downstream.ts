@@ -27,7 +27,8 @@ export async function searchFromApi(
 
     // 添加超时处理
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    // 缩短超时时间，加快搜索响应
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     const response = await fetch(apiUrl, {
       headers: API_CONFIG.search.headers,
@@ -112,9 +113,10 @@ export async function searchFromApi(
         const pagePromise = (async () => {
           try {
             const pageController = new AbortController();
+            // 缩短超时时间
             const pageTimeoutId = setTimeout(
               () => pageController.abort(),
-              8000
+              5000
             );
 
             const pageResponse = await fetch(pageUrl, {
@@ -201,7 +203,7 @@ export async function getDetailFromApi(
   const detailUrl = `${apiSite.api}${API_CONFIG.detail.path}${id}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   const response = await fetch(detailUrl, {
     headers: API_CONFIG.detail.headers,
@@ -276,7 +278,7 @@ async function handleSpecialSourceDetail(
   const detailUrl = `${apiSite.detail}/index.php/vod/detail/id/${id}.html`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   const response = await fetch(detailUrl, {
     headers: API_CONFIG.detail.headers,
