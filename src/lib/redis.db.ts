@@ -279,10 +279,10 @@ function getRedisClient(): RedisClientType {
   let client: RedisClientType | undefined = (global as any)[globalKey];
 
   if (!client) {
-    // 优先使用 KV_URL (Vercel)，然后是 REDIS_URL
-    const url = process.env.KV_URL || process.env.REDIS_URL;
+    // 优先使用 tv_REDIS_URL (用户配置)，然后是 KV_URL (Vercel KV)，最后是 REDIS_URL
+    const url = process.env.tv_REDIS_URL || process.env.KV_URL || process.env.REDIS_URL;
     if (!url) {
-      throw new Error('KV_URL or REDIS_URL env variable not set');
+      throw new Error('tv_REDIS_URL, KV_URL or REDIS_URL env variable not set');
     }
 
     // 创建客户端，配置重连策略
