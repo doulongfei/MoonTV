@@ -43,6 +43,17 @@ export const API_CONFIG = {
 let fileConfig: ConfigFileStruct;
 let cachedConfig: AdminConfig;
 
+// 内存缓存配置，减少 DB 读取 (TTL 60秒)
+let memoryCache: { data: AdminConfig | null; timestamp: number } = {
+  data: null,
+  timestamp: 0,
+};
+const CACHE_TTL = 60 * 1000;
+
+export function invalidateConfigCache() {
+  memoryCache = { data: null, timestamp: 0 };
+}
+
 async function initConfig() {
   if (cachedConfig) {
     return;
@@ -159,6 +170,7 @@ async function initConfig() {
               Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
             SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
             ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
+            SearchConcurrencyLimit: 20,
           },
           UserConfig: {
             AllowRegister: process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true',
@@ -197,6 +209,7 @@ async function initConfig() {
           Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
         SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
         ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
+        SearchConcurrencyLimit: 20,
       },
       UserConfig: {
         AllowRegister: process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true',
@@ -220,6 +233,15 @@ export async function getConfig(): Promise<AdminConfig> {
     await initConfig();
     return cachedConfig;
   }
+
+  // 检查内存缓存是否有效
+  if (
+    memoryCache.data &&
+    Date.now() - memoryCache.timestamp < CACHE_TTL
+  ) {
+    return memoryCache.data;
+  }
+
   // 非 docker 环境且 DB 存储，直接读 db 配置
   const storage = getStorage();
   let adminConfig: AdminConfig | null = null;
@@ -262,6 +284,12 @@ export async function getConfig(): Promise<AdminConfig> {
       }
     });
     cachedConfig = adminConfig;
+    
+    // 更新内存缓存
+    memoryCache = {
+      data: adminConfig,
+      timestamp: Date.now(),
+    };
   } else {
     // DB 无配置，执行一次初始化
     await initConfig();
@@ -320,6 +348,7 @@ export async function resetConfig() {
         Number(process.env.NEXT_PUBLIC_SEARCH_MAX_PAGE) || 5,
       SiteInterfaceCacheTime: fileConfig.cache_time || 7200,
       ImageProxy: process.env.NEXT_PUBLIC_IMAGE_PROXY || '',
+      SearchConcurrencyLimit: 20,
     },
     UserConfig: {
       AllowRegister: process.env.NEXT_PUBLIC_ENABLE_REGISTER === 'true',
@@ -345,6 +374,9 @@ export async function resetConfig() {
   cachedConfig.SiteConfig = adminConfig.SiteConfig;
   cachedConfig.UserConfig = adminConfig.UserConfig;
   cachedConfig.SourceConfig = adminConfig.SourceConfig;
+
+  // 清除内存缓存，强制下次读取最新
+  memoryCache = { data: null, timestamp: 0 };
 }
 
 export async function getCacheTime(): Promise<number> {

@@ -17,15 +17,13 @@ const MobileHeader = ({ showBackButton = false }: MobileHeaderProps) => {
   return (
     <header className='md:hidden relative w-full bg-white/70 backdrop-blur-xl border-b border-gray-200/50 shadow-sm dark:bg-gray-900/70 dark:border-gray-700/50'>
       <div className='h-12 flex items-center justify-between px-4'>
-        {/* 左侧：返回按钮和设置按钮 */}
+        {/* 左侧：返回按钮 */}
         <div className='flex items-center gap-2'>
           {showBackButton && <BackButton />}
-          <SettingsButton />
         </div>
 
-        {/* 右侧按钮 */}
+        {/* 右侧按钮：主题切换 */}
         <div className='flex items-center gap-2'>
-          <LogoutButton />
           <ThemeToggle />
         </div>
       </div>

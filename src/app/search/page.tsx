@@ -124,40 +124,52 @@ function SearchPageClient() {
   const fetchSearchResults = async (query: string) => {
     try {
       setIsLoading(true);
+      setSearchResults([]); // 清空旧结果
+      setShowResults(true);
+
       const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query.trim())}`
+        `/api/search/v2?q=${encodeURIComponent(query.trim())}`
       );
-      const data = await response.json();
-      setSearchResults(
-        data.results.sort((a: SearchResult, b: SearchResult) => {
-          // 优先排序：标题与搜索词完全一致的排在前面
-          const aExactMatch = a.title === query.trim();
-          const bExactMatch = b.title === query.trim();
 
-          if (aExactMatch && !bExactMatch) return -1;
-          if (!aExactMatch && bExactMatch) return 1;
+      if (!response.body) return;
 
-          // 如果都匹配或都不匹配，则按原来的逻辑排序
-          if (a.year === b.year) {
-            return a.title.localeCompare(b.title);
-          } else {
-            // 处理 unknown 的情况
-            if (a.year === 'unknown' && b.year === 'unknown') {
-              return 0;
-            } else if (a.year === 'unknown') {
-              return 1; // a 排在后面
-            } else if (b.year === 'unknown') {
-              return -1; // b 排在后面
-            } else {
-              // 都是数字年份，按数字大小排序（大的在前面）
-              return parseInt(a.year) > parseInt(b.year) ? -1 : 1;
+      const reader = response.body.getReader();
+      const decoder = new TextEncoder().encode('data: '); // SSE 消息前缀
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        // 将 Uint8Array 转换为字符串
+        buffer += new TextDecoder().decode(value);
+
+        // 处理 SSE 消息格式
+        const messages = buffer.split('\n\n');
+        buffer = messages.pop() || ''; // 最后一个可能是不完整的，留给下次处理
+
+        for (const message of messages) {
+          if (message.startsWith('event: end')) {
+            setIsLoading(false);
+            return;
+          }
+
+          if (message.startsWith('data: ')) {
+            try {
+              const jsonStr = message.replace('data: ', '').trim();
+              if (jsonStr === '{}') continue;
+              const data = JSON.parse(jsonStr);
+              if (data.results && Array.isArray(data.results)) {
+                setSearchResults((prev) => [...prev, ...data.results]);
+              }
+            } catch (e) {
+              console.error('Error parsing stream chunk:', e);
             }
           }
-        })
-      );
-      setShowResults(true);
+        }
+      }
     } catch (error) {
-      setSearchResults([]);
+      console.error('Streaming search error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -203,17 +215,21 @@ function SearchPageClient() {
 
         {/* 搜索结果或搜索历史 */}
         <div className='max-w-[95%] mx-auto mt-12 overflow-visible'>
-          {isLoading ? (
-            <div className='flex justify-center items-center h-40'>
-              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
-            </div>
-          ) : showResults ? (
+          {showResults ? (
             <section className='mb-12'>
               {/* 标题 + 聚合开关 */}
               <div className='mb-8 flex items-center justify-between'>
-                <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
-                  搜索结果
-                </h2>
+                <div className='flex items-center gap-4'>
+                  <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
+                    搜索结果
+                  </h2>
+                  {isLoading && (
+                    <div className='flex items-center gap-2 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-xs rounded-full animate-pulse'>
+                      <div className='w-2 h-2 bg-green-500 rounded-full animate-bounce'></div>
+                      全网搜寻中...
+                    </div>
+                  )}
+                </div>
                 {/* 聚合开关 */}
                 <label className='flex items-center gap-2 cursor-pointer select-none'>
                   <span className='text-sm text-gray-700 dark:text-gray-300'>
@@ -233,56 +249,66 @@ function SearchPageClient() {
                   </div>
                 </label>
               </div>
-              <div
-                key={`search-results-${viewMode}`}
-                className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'
-              >
-                {viewMode === 'agg'
-                  ? aggregatedResults.map(([mapKey, group]) => {
-                      return (
-                        <div key={`agg-${mapKey}`} className='w-full'>
+
+              {isLoading && searchResults.length === 0 ? (
+                /* 初始全屏 Loading */
+                <div className='flex justify-center items-center h-40'>
+                  <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
+                </div>
+              ) : (
+                <div
+                  key={`search-results-${viewMode}`}
+                  className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'
+                >
+                  {viewMode === 'agg'
+                    ? aggregatedResults.map(([mapKey, group]) => {
+                        return (
+                          <div key={`agg-${mapKey}`} className='w-full'>
+                            <VideoCard
+                              from='search'
+                              items={group}
+                              query={
+                                searchQuery.trim() !== group[0].title
+                                  ? searchQuery.trim()
+                                  : ''
+                              }
+                            />
+                          </div>
+                        );
+                      })
+                    : searchResults.map((item) => (
+                        <div
+                          key={`all-${item.source}-${item.id}`}
+                          className='w-full'
+                        >
                           <VideoCard
-                            from='search'
-                            items={group}
+                            id={item.id}
+                            title={item.title}
+                            poster={item.poster}
+                            episodes={item.episodes.length}
+                            source={item.source}
+                            source_name={item.source_name}
+                            douban_id={item.douban_id?.toString()}
                             query={
-                              searchQuery.trim() !== group[0].title
+                              searchQuery.trim() !== item.title
                                 ? searchQuery.trim()
                                 : ''
                             }
+                            year={item.year}
+                            from='search'
+                            type={item.episodes.length > 1 ? 'tv' : 'movie'}
                           />
                         </div>
-                      );
-                    })
-                  : searchResults.map((item) => (
-                      <div
-                        key={`all-${item.source}-${item.id}`}
-                        className='w-full'
-                      >
-                        <VideoCard
-                          id={item.id}
-                          title={item.title}
-                          poster={item.poster}
-                          episodes={item.episodes.length}
-                          source={item.source}
-                          source_name={item.source_name}
-                          douban_id={item.douban_id?.toString()}
-                          query={
-                            searchQuery.trim() !== item.title
-                              ? searchQuery.trim()
-                              : ''
-                          }
-                          year={item.year}
-                          from='search'
-                          type={item.episodes.length > 1 ? 'tv' : 'movie'}
-                        />
-                      </div>
-                    ))}
-                {searchResults.length === 0 && (
-                  <div className='col-span-full text-center text-gray-500 py-8 dark:text-gray-400'>
-                    未找到相关结果
-                  </div>
-                )}
-              </div>
+                      ))}
+                  
+                  {/* 没有结果时的提示 */}
+                  {!isLoading && searchResults.length === 0 && (
+                    <div className='col-span-full text-center text-gray-500 py-8 dark:text-gray-400'>
+                      未找到相关结果
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           ) : searchHistory.length > 0 ? (
             // 搜索历史

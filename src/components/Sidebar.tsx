@@ -1,6 +1,17 @@
 'use client';
 
-import { Clover, Film, Home, Menu, Search, Tv } from 'lucide-react';
+import {
+  Clover,
+  Database,
+  Film,
+  Home,
+  LogOut,
+  Menu,
+  Search,
+  Settings,
+  Tv,
+  User,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -11,6 +22,8 @@ import {
   useLayoutEffect,
   useState,
 } from 'react';
+
+import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
 
 import { useSite } from './SiteProvider';
 
@@ -118,9 +131,29 @@ const Sidebar = ({ onToggle, activePath = '/' }: SidebarProps) => {
     router.push('/search');
   }, [router]);
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch (e) {
+      console.error('Logout failed', e);
+    }
+  };
+
   const contextValue = {
     isCollapsed,
   };
+
+  const [username, setUsername] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const info = getAuthInfoFromBrowserCookie();
+    if (info?.username) {
+      setUsername(info.username);
+      setRole(info.role || 'user');
+    }
+  }, []);
 
   const menuItems = [
     {
@@ -139,6 +172,21 @@ const Sidebar = ({ onToggle, activePath = '/' }: SidebarProps) => {
       href: '/douban?type=show',
     },
   ];
+
+  const adminItems = [
+    {
+      icon: Settings,
+      label: '后台设置',
+      href: '/admin',
+    },
+    {
+      icon: Database,
+      label: '视频源管理',
+      href: '/admin/sources',
+    },
+  ];
+
+  const isAdmin = role === 'owner' || role === 'admin';
 
   return (
     <SidebarContext.Provider value={contextValue}>
@@ -259,6 +307,88 @@ const Sidebar = ({ onToggle, activePath = '/' }: SidebarProps) => {
                   );
                 })}
               </div>
+
+              {/* 后台管理菜单 - 仅管理员可见 */}
+              {username && isAdmin && (
+                <div className='mt-6 pt-4 border-t border-gray-200 dark:border-gray-700'>
+                  {!isCollapsed && (
+                    <div className='px-4 mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                      管理后台
+                    </div>
+                  )}
+                  <div className='space-y-1'>
+                    {adminItems.map((item) => {
+                      const isActive = active.startsWith(item.href);
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.label}
+                          href={item.href}
+                          onClick={() => setActive(item.href)}
+                          data-active={isActive}
+                          className={`group flex items-center rounded-lg px-2 py-2 pl-4 text-sm text-gray-700 hover:bg-gray-100/30 hover:text-green-600 data-[active=true]:bg-green-500/20 data-[active=true]:text-green-700 transition-colors duration-200 min-h-[40px] dark:text-gray-300 dark:hover:text-green-400 dark:data-[active=true]:bg-green-500/10 dark:data-[active=true]:text-green-400 ${
+                            isCollapsed ? 'w-full max-w-none mx-0' : 'mx-0'
+                          } gap-3 justify-start`}
+                        >
+                          <div className='w-4 h-4 flex items-center justify-center'>
+                            <Icon className='h-4 w-4 text-gray-500 group-hover:text-green-600 data-[active=true]:text-green-700 dark:text-gray-400 dark:group-hover:text-green-400 dark:data-[active=true]:text-green-400' />
+                          </div>
+                          {!isCollapsed && (
+                            <span className='whitespace-nowrap transition-opacity duration-200 opacity-100'>
+                              {item.label}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 底部用户信息区域 */}
+            <div className='mt-auto p-2 border-t border-gray-200/50 dark:border-gray-700/50'>
+              {username ? (
+                <div
+                  className={`flex items-center gap-3 px-2 py-3 rounded-xl transition-colors ${
+                    isCollapsed ? 'justify-center' : 'hover:bg-gray-100/50 dark:hover:bg-gray-800/50'
+                  }`}
+                >
+                  <div className='flex-shrink-0 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white'>
+                    <User size={18} />
+                  </div>
+                  {!isCollapsed && (
+                    <div className='flex-1 min-w-0'>
+                      <p className='text-sm font-medium text-gray-900 dark:text-gray-100 truncate'>
+                        {username}
+                      </p>
+                      <button
+                        onClick={handleLogout}
+                        className='text-xs text-red-500 hover:text-red-600 flex items-center gap-1 mt-0.5 transition-colors'
+                      >
+                        <LogOut size={12} />
+                        注销登录
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  href='/login'
+                  className={`flex items-center gap-3 px-2 py-3 rounded-xl hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors ${
+                    isCollapsed ? 'justify-center' : ''
+                  }`}
+                >
+                  <div className='flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500'>
+                    <User size={18} />
+                  </div>
+                  {!isCollapsed && (
+                    <span className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+                      点击登录
+                    </span>
+                  )}
+                </Link>
+              )}
             </div>
           </div>
         </aside>

@@ -45,7 +45,8 @@ async function generateSignature(
 async function generateAuthCookie(
   username?: string,
   password?: string,
-  includePassword = false
+  includePassword = false,
+  role?: string
 ): Promise<string> {
   const authData: any = {};
 
@@ -56,6 +57,7 @@ async function generateAuthCookie(
 
   if (username && process.env.PASSWORD) {
     authData.username = username;
+    authData.role = role || 'user'; // 默认角色为 user
     // 使用密码作为密钥对用户名进行签名
     const signature = await generateSignature(username, process.env.PASSWORD);
     authData.signature = signature;
@@ -101,7 +103,12 @@ export async function POST(req: NextRequest) {
 
       // 验证成功，设置认证cookie
       const response = NextResponse.json({ ok: true });
-      const cookieValue = await generateAuthCookie(undefined, password, true); // localstorage 模式包含 password
+      const cookieValue = await generateAuthCookie(
+        undefined,
+        password,
+        true,
+        'owner'
+      ); // localstorage 模式包含 password，角色默认为 owner
       const expires = new Date();
       expires.setDate(expires.getDate() + 7); // 7天过期
 
@@ -133,7 +140,12 @@ export async function POST(req: NextRequest) {
     ) {
       // 验证成功，设置认证cookie
       const response = NextResponse.json({ ok: true });
-      const cookieValue = await generateAuthCookie(username, password, false); // 数据库模式不包含 password
+      const cookieValue = await generateAuthCookie(
+        username,
+        password,
+        false,
+        'owner'
+      ); // 站长角色为 owner
       const expires = new Date();
       expires.setDate(expires.getDate() + 7); // 7天过期
 
@@ -166,9 +178,17 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // 获取用户真实角色
+      const role = user?.role || 'user';
+
       // 验证成功，设置认证cookie
       const response = NextResponse.json({ ok: true });
-      const cookieValue = await generateAuthCookie(username, password, false); // 数据库模式不包含 password
+      const cookieValue = await generateAuthCookie(
+        username,
+        password,
+        false,
+        role
+      );
       const expires = new Date();
       expires.setDate(expires.getDate() + 7); // 7天过期
 
