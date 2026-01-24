@@ -9,6 +9,10 @@ const nextConfig = {
   reactStrictMode: false,
   swcMinify: true,
 
+  experimental: {
+    allowedDevOrigins: ['127.0.0.1:3000', 'localhost:3000'],
+  },
+
   // Uncoment to add domain whitelist
   images: {
     unoptimized: true,

@@ -35,6 +35,12 @@ export function processImageUrl(originalUrl: string): string {
   if (!originalUrl) return originalUrl;
 
   const proxyUrl = getImageProxyUrl();
+  
+  // 针对豆瓣图片，如果没有配置全局代理，则强制使用内置代理以解决 418 防盗链问题
+  if (!proxyUrl && originalUrl.includes('doubanio.com')) {
+    return `/api/image-proxy?url=${encodeURIComponent(originalUrl)}`;
+  }
+
   if (!proxyUrl) return originalUrl;
 
   return `${proxyUrl}${encodeURIComponent(originalUrl)}`;

@@ -1,30 +1,16 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 import { AdminConfig } from './admin.types';
-import { D1Storage } from './d1.db';
 import { RedisStorage } from './redis.db';
 import { Favorite, IStorage, PlayRecord } from './types';
 
-// storage type 常量: 'localstorage' | 'redis' | 'd1'，默认 'localstorage'
-const STORAGE_TYPE =
-  (process.env.NEXT_PUBLIC_STORAGE_TYPE as
-    | 'localstorage'
-    | 'redis'
-    | 'd1'
-    | undefined) || 'localstorage';
+// 强制使用 Redis
+const STORAGE_TYPE = 'redis';
 
 // 创建存储实例
 function createStorage(): IStorage {
-  switch (STORAGE_TYPE) {
-    case 'redis':
-      return new RedisStorage();
-    case 'd1':
-      return new D1Storage();
-    case 'localstorage':
-    default:
-      // 默认返回内存实现，保证本地开发可用
-      return null as unknown as IStorage;
-  }
+  // 仅支持 Redis
+  return new RedisStorage();
 }
 
 // 单例存储实例
