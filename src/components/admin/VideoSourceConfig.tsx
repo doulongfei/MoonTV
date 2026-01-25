@@ -49,6 +49,7 @@ interface TestResult {
   latency?: number;
   error?: string;
   status?: number;
+  ok?: boolean;
 }
 
 const showError = (message: string) =>
