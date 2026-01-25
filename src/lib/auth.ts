@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 export function getAuthInfoFromCookie(request: NextRequest): {
   password?: string;
   username?: string;
+  role?: string;
   signature?: string;
   timestamp?: number;
 } | null {
@@ -26,6 +27,7 @@ export function getAuthInfoFromCookie(request: NextRequest): {
 export function getAuthInfoFromBrowserCookie(): {
   password?: string;
   username?: string;
+  role?: string;
   signature?: string;
   timestamp?: number;
 } | null {

@@ -134,9 +134,9 @@ function SearchPageClient() {
       if (!response.body) return;
 
       const reader = response.body.getReader();
-      const decoder = new TextEncoder().encode('data: '); // SSE 消息前缀
       let buffer = '';
 
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
